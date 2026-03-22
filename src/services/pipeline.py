@@ -5,6 +5,7 @@ import logging
 import re
 
 from src.config import settings
+from src.db.logs import write_log
 from src.db.prices import get_prices
 from src.db.recipes import search_by_ingredients
 from src.llm.client import generate_response
@@ -79,6 +80,7 @@ async def process_query(user_message: str, chat_id: int) -> str:
         response = "Произошла ошибка при обработке запроса. Попробуйте ещё раз."
 
     session.add_message("assistant", response)
+    await write_log(chat_id, user_message, response)
     return response
 
 

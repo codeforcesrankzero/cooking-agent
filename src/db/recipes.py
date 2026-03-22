@@ -60,7 +60,7 @@ def _row_to_dict(row) -> dict:
     }
 
 
-async def get_recipes_by_ids(ids: list[int | str]) -> list[dict]:
+async def get_recipes_by_ids(ids: list[int]) -> list[dict]:
     """Fetch full recipe rows by a list of IDs."""
     if not ids:
         return []

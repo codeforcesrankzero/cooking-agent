@@ -6,6 +6,7 @@ from aiogram import Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from src.db.logs import write_feedback
 from src.services.pipeline import process_query
 from src.services.session import session_manager
 
@@ -75,6 +76,7 @@ async def handle_text(message: types.Message) -> None:
 async def handle_feedback(callback: types.CallbackQuery) -> None:
     feedback_type = callback.data.split(":")[1] if callback.data else "unknown"
     logger.info("Feedback from chat %s: %s", callback.message.chat.id, feedback_type)
+    await write_feedback(callback.message.chat.id, feedback_type)
     await callback.answer("Спасибо за отзыв!")
 
 
