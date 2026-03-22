@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     direct_answer_threshold: float = 0.9
     relevance_threshold: float = 0.1
 
+    preload_embeddings_on_startup: bool = True
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

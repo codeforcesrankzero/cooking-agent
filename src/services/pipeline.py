@@ -3,12 +3,14 @@
 import asyncio
 import logging
 import re
+import time
 
 from src.config import settings
 from src.db.logs import write_log
 from src.db.prices import get_prices
 from src.db.recipes import search_by_ingredients
 from src.llm.client import generate_response
+from src.metrics import ANSWER_PATH_TOTAL, REQUEST_LATENCY_SECONDS, REQUESTS_TOTAL, STAGE_DURATION_SECONDS
 from src.search.semantic import search_semantic
 from src.services.session import session_manager
 
@@ -43,15 +45,18 @@ def _extract_ingredients(text: str) -> list[str]:
 
 async def process_query(user_message: str, chat_id: int) -> str:
     """Run the full pipeline for a user message."""
+    t0 = time.perf_counter()
     session = session_manager.get(chat_id)
     session.add_message("user", user_message)
 
     try:
         ingredients = _extract_ingredients(user_message)
 
+        ts = time.perf_counter()
         fts_task = search_by_ingredients(ingredients) if ingredients else asyncio.sleep(0)
         sem_task = search_semantic(user_message)
         results = await asyncio.gather(fts_task, sem_task, return_exceptions=True)
+        STAGE_DURATION_SECONDS.labels(stage="search").observe(time.perf_counter() - ts)
 
         fts_results = results[0] if isinstance(results[0], list) else []
         semantic_results = results[1] if isinstance(results[1], list) else []
@@ -59,28 +64,40 @@ async def process_query(user_message: str, chat_id: int) -> str:
         combined = _combine_results(fts_results, semantic_results)
 
         if combined and combined[0].get("score", 0) >= settings.direct_answer_threshold:
+            ANSWER_PATH_TOTAL.labels(path="direct").inc()
             top_recipes = combined[:3]
             all_ingredients: list[str] = []
             for recipe in top_recipes:
                 all_ingredients.extend(recipe.get("ingredients", []))
+            tp = time.perf_counter()
             prices = await get_prices(list(set(all_ingredients))) if all_ingredients else {}
+            STAGE_DURATION_SECONDS.labels(stage="prices").observe(time.perf_counter() - tp)
             response = _format_direct_response(top_recipes, prices)
         else:
+            ANSWER_PATH_TOTAL.labels(path="llm").inc()
             recipes_text = _format_recipes(combined)
             all_ingredients = []
             for recipe in combined:
                 all_ingredients.extend(recipe.get("ingredients", []))
+            tp = time.perf_counter()
             prices = await get_prices(list(set(all_ingredients))) if all_ingredients else {}
+            STAGE_DURATION_SECONDS.labels(stage="prices").observe(time.perf_counter() - tp)
             prices_text = _format_prices(prices)
             history = session.get_history_text()
+            tl = time.perf_counter()
             response = await generate_response(recipes_text, prices_text, history, user_message)
+            STAGE_DURATION_SECONDS.labels(stage="llm").observe(time.perf_counter() - tl)
 
     except Exception:
         logger.exception("Pipeline error for chat_id=%s", chat_id)
         response = "Произошла ошибка при обработке запроса. Попробуйте ещё раз."
+        REQUESTS_TOTAL.labels(channel="bot", result="error").inc()
+        REQUEST_LATENCY_SECONDS.labels(channel="bot").observe(time.perf_counter() - t0)
         session.add_message("assistant", response)
         return response
 
+    REQUESTS_TOTAL.labels(channel="bot", result="ok").inc()
+    REQUEST_LATENCY_SECONDS.labels(channel="bot").observe(time.perf_counter() - t0)
     session.add_message("assistant", response)
     await write_log(chat_id, user_message, response)
     return response

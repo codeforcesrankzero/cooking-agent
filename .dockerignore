@@ -1,0 +1,15 @@
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.git
+.gitignore
+.DS_Store
+terminals
+agent-transcripts
+*.pyc
+*.pyo
+*.pyd
+*.db-journal
+
