@@ -13,7 +13,7 @@ async def test_health():
 
 
 async def test_query_returns_response():
-    with patch("src.services.pipeline.process_query", new=AsyncMock(return_value="тестовый ответ")):
+    with patch("src.api.process_query", new=AsyncMock(return_value="тестовый ответ")):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post("/query", json={"message": "курица", "chat_id": 1})
     assert resp.status_code == 200
