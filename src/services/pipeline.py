@@ -78,6 +78,8 @@ async def process_query(user_message: str, chat_id: int) -> str:
     except Exception:
         logger.exception("Pipeline error for chat_id=%s", chat_id)
         response = "Произошла ошибка при обработке запроса. Попробуйте ещё раз."
+        session.add_message("assistant", response)
+        return response
 
     session.add_message("assistant", response)
     await write_log(chat_id, user_message, response)
