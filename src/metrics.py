@@ -19,6 +19,12 @@ REQUEST_LATENCY_SECONDS = Histogram(
     buckets=(0.05, 0.1, 0.2, 0.35, 0.5, 0.75, 1, 1.5, 2, 3, 5, 8, 13),
 )
 
+SEARCH_HITS_TOTAL = Counter(
+    "cooking_agent_search_hits_total",
+    "Number of recipes found per search source",
+    ["source"],
+)
+
 STAGE_DURATION_SECONDS = Histogram(
     "cooking_agent_stage_duration_seconds",
     "Duration of individual pipeline stages in seconds",

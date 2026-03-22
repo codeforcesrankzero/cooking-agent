@@ -10,7 +10,8 @@ from src.db.logs import write_log
 from src.db.prices import get_prices
 from src.db.recipes import search_by_ingredients
 from src.llm.client import generate_response
-from src.metrics import ANSWER_PATH_TOTAL, REQUEST_LATENCY_SECONDS, REQUESTS_TOTAL, STAGE_DURATION_SECONDS
+from src.metrics import ANSWER_PATH_TOTAL, REQUEST_LATENCY_SECONDS, REQUESTS_TOTAL, SEARCH_HITS_TOTAL, STAGE_DURATION_SECONDS
+from src.search.ru_en import translate_ingredients
 from src.search.semantic import search_semantic
 from src.services.session import session_manager
 
@@ -51,15 +52,19 @@ async def process_query(user_message: str, chat_id: int) -> str:
 
     try:
         ingredients = _extract_ingredients(user_message)
+        en_ingredients = translate_ingredients(ingredients)
 
         ts = time.perf_counter()
-        fts_task = search_by_ingredients(ingredients) if ingredients else asyncio.sleep(0)
+        fts_task = search_by_ingredients(en_ingredients) if en_ingredients else asyncio.sleep(0)
         sem_task = search_semantic(user_message)
         results = await asyncio.gather(fts_task, sem_task, return_exceptions=True)
         STAGE_DURATION_SECONDS.labels(stage="search").observe(time.perf_counter() - ts)
 
         fts_results = results[0] if isinstance(results[0], list) else []
         semantic_results = results[1] if isinstance(results[1], list) else []
+
+        SEARCH_HITS_TOTAL.labels(source="fts").inc(len(fts_results))
+        SEARCH_HITS_TOTAL.labels(source="semantic").inc(len(semantic_results))
 
         combined = _combine_results(fts_results, semantic_results)
 

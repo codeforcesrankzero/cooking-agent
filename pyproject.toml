@@ -17,6 +17,7 @@ dependencies = [
     "aiosqlite>=0.20",
     "sentence-transformers>=2.6",
     "prometheus-client>=0.20",
+    "pymorphy3>=2.0",
 ]
 
 [project.optional-dependencies]
