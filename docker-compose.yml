@@ -7,8 +7,8 @@ services:
     environment:
       # Reuse HuggingFace cache between restarts (important for startup time).
       HF_HOME: /app/data/hf_cache
-      # Default for containers: avoid OOM/startup issues; let lazy loading happen.
       PRELOAD_EMBEDDINGS_ON_STARTUP: "false"
+      LOG_LEVEL: "DEBUG"
     ports:
       - "8000:8000"
     volumes:
