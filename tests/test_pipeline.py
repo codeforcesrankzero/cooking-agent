@@ -1,6 +1,19 @@
-"""Tests for pipeline helper functions."""
+from src.services.pipeline import _combine_results, _extract_ingredients, _format_prices, _format_recipes
 
-from src.services.pipeline import _combine_results, _format_prices, _format_recipes
+
+def test_extract_ingredients_basic():
+    result = _extract_ingredients("pork and curry powder")
+    assert "pork" in result
+    assert "curry" in result
+    assert "powder" in result
+    assert "and" not in result
+
+
+def test_extract_ingredients_filters_stop_words():
+    result = _extract_ingredients("I would like to cook something with chicken")
+    assert "chicken" in result
+    assert "would" not in result
+    assert "like" not in result
 
 
 def test_combine_deduplicates():
@@ -49,13 +62,21 @@ def test_combine_takes_max_score():
     assert result[0]["source"] == "both"
 
 
-def test_combine_filters_by_threshold(monkeypatch):
+def test_combine_or_filter(monkeypatch):
     monkeypatch.setattr("src.services.pipeline.settings.relevance_threshold", 0.5)
-    items = [
+    fts = [{"id": 1, "name": "FTS only", "score": 0.8, "source": "fts"}]
+    sem = [{"id": 2, "name": "Sem only", "score": 0.6, "source": "semantic"}]
+    result = _combine_results(fts, sem)
+    assert len(result) == 2
+
+
+def test_combine_filters_below_both_thresholds(monkeypatch):
+    monkeypatch.setattr("src.services.pipeline.settings.relevance_threshold", 0.5)
+    fts = [
         {"id": 1, "name": "Good", "score": 0.8, "source": "fts"},
         {"id": 2, "name": "Bad", "score": 0.2, "source": "fts"},
     ]
-    result = _combine_results(items, [])
+    result = _combine_results(fts, [])
     assert len(result) == 1
     assert result[0]["id"] == 1
 

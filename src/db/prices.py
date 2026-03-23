@@ -6,14 +6,15 @@ from src.config import settings
 
 
 async def get_prices(products: list[str]) -> dict[str, float | None]:
-    """Look up prices for a list of products."""
-    result: dict[str, float | None] = {}
+    if not products:
+        return {}
+    normalized = {p.lower(): p for p in products}
+    placeholders = ",".join("?" for _ in normalized)
     async with aiosqlite.connect(settings.database_path) as db:
-        for product in products:
-            cursor = await db.execute(
-                "SELECT price FROM prices WHERE product_name = ?",
-                (product.lower(),),
-            )
-            row = await cursor.fetchone()
-            result[product] = row[0] if row else None
-    return result
+        cursor = await db.execute(
+            f"SELECT product_name, price FROM prices WHERE product_name IN ({placeholders})",
+            list(normalized.keys()),
+        )
+        rows = await cursor.fetchall()
+    found = {row[0]: row[1] for row in rows}
+    return {orig: found.get(low) for low, orig in normalized.items()}

@@ -1,6 +1,8 @@
 """FastAPI app — REST endpoint for the cooking agent pipeline."""
 
 from fastapi import FastAPI
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from starlette.responses import Response
 from pydantic import BaseModel
 
 from src.services.pipeline import process_query
@@ -26,3 +28,8 @@ async def query(req: QueryRequest):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/metrics")
+async def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

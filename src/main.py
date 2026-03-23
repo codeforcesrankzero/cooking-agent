@@ -39,13 +39,18 @@ async def on_startup() -> None:
     await init_database(settings.database_path)
     logger.info("Database initialized at %s", settings.database_path)
 
-    logger.info("Preloading embedding model...")
-    await asyncio.to_thread(preload_model)
-    logger.info("Embedding model ready")
+    # Important: preload heavy components in background.
+    # Otherwise FastAPI "startup" blocks and /health won't respond yet,
+    # causing container healthchecks to fail.
+    if settings.preload_embeddings_on_startup:
+        logger.info("Starting background preload (embedding + ChromaDB)...")
+        asyncio.create_task(asyncio.to_thread(preload_model))
+        from src.search.semantic import _get_collection
 
-    from src.search.semantic import _get_collection
-    await asyncio.to_thread(_get_collection)
-    logger.info("ChromaDB collection ready")
+        asyncio.create_task(asyncio.to_thread(_get_collection))
+        logger.info("Background preload started")
+    else:
+        logger.info("Skipping embedding/ChromaDB preload (lazy loading will be used)")
 
     if settings.telegram_bot_token:
         asyncio.create_task(start_bot())
