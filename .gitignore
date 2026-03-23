@@ -1,0 +1,30 @@
+# Environment
+.env
+.env.dev
+.env.prod
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Data
+data/*.csv
+data/*.parquet
+*.db
+chroma_storage/
+data/chroma_storage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
